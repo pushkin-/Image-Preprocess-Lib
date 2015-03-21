@@ -1,13 +1,35 @@
+"""
+Give it a directory with images, a directory to put the cropped images in, and a size.
+Click to draw a bounding box of the size you want.
+
+You can click outside of the image (in the white space) to remove the box. When you press the enter key to go on to the next image, if no bounding box is detected,
+the image will be skipped. Otherwise it will save the image, but will stay on the current image until you press 'c' to continue.
+You can move the box around using the arrow keys - wraps around.
+
+Press 'q' to close out of the application.
+
+Optionally, you can tell it to print how many images are left after every 'i'th image.
+
+If the image's name is test.jpg and you poke it 4 times ('enter' after each poke), the output directory will contain the files:
+    0_test.jpg
+    1_test.jpg
+    2_test.jpg
+    3_test.jpg
+
+Usage:
+$ python crop_images.py images_dir output_dir 50,50 {-status 5}
+"""
+
 from PIL import Image
 import pylab as pl
 import os
 import numpy as np
 import cv2 as cv
 
-files = []
-save_target = ''
-size = (0, 0)
-print_after = 0
+files = [] # list of images
+save_target = '' # where to save cropped images to
+size = (0, 0) # desired size
+print_after = 0 # status; if print_after = i, prints # of remaining images every ith image
 
 img = 0
 img_name = ''
@@ -18,8 +40,11 @@ y = -1
 done = False
 quit = False
 
-idx = 0
+idx = 0 # becomes the prefix of the output file (e.g. 0_test.jpg, 1_test.jpg, etc.)
 
+"""
+Start the resizing operation.
+"""
 def start():
     global files
     global size
@@ -31,18 +56,20 @@ def start():
     h_c = float(size[1])
 
     for i in range(total):
-        f = files[i]
         if print_after > 0 and i % print_after == 0:
             print '%d images left' % (total-1-i)
 
         reset()
 
+        # get the image
+        f = files[i]
         img = Image.open(f)
         img_name = os.path.basename(f)
 
         fig = pl.figure()
         redraw()
 
+        # bind listeners
         fig.canvas.mpl_connect('button_press_event', onclick)
         fig.canvas.mpl_connect('key_press_event', onkey)
 
@@ -50,18 +77,18 @@ def start():
 
         flag = True
         while flag:
-            if done:
-                flag = False
-            if quit:
-                return
+            if done: flag = False
+            if quit: return
 
-        if isinstance(points, list):
-            if len(points) == 0:
-                continue
+        #if isinstance(points, list):
+            #if not points: continue
 
-            # if (img.size[0] != w_c or img.size[1] != h_c): # just in case
-            #     img = img.resize(size, Image.ANTIALIAS)
+            #if (img.size[0] != w_c or img.size[1] != h_c): # just in case
+                #img = img.resize(size, Image.ANTIALIAS)
 
+"""
+Reset the parameters.
+"""
 def reset():
     global x
     global y
@@ -75,12 +102,9 @@ def reset():
     done = False
     idx = 0
 
-def done_viewing():
-    global done
-
-    if isinstance(points, list):
-        done = True
-
+"""
+Saves the cropped image.
+"""
 def save():
     global points
 
@@ -97,6 +121,9 @@ def save():
         img_c.save(os.path.normpath(save_target +'/' + str(idx) +'_' + img_name))
         idx += 1
 
+"""
+Get point and redraw.
+"""
 def onclick(e):
     global x
     global y
@@ -108,58 +135,84 @@ def onclick(e):
         y = int(y)
         redraw()
 
+"""
+Go to next image, save cropped image, or quit.
+"""
 def onkey(e):
     global x
     global y
 
-    if e.key == 'c':
+    w = img.size[0]
+    h = img.size[1]
+
+    if e.key == 'c': # continue
         global points
         global done
 
-        points = []
+        #points = []
         done = True
         pl.close()
 
-    elif e.key == 'enter':
+    elif e.key == 'enter': # save image
         save()
 
+    # use arrow keys to move box around; will wrap around
     elif e.key == 'right':
-        w = img.size[0]
-        h = img.size[1]
-
         x += size[0]
         if x > w:
             x = size[0]/2.0
             y += size[1]
 
-        if y > h:
-            x -= size[0]
-            y -= size[1]
-            return
+        if y > h: # if we wrapped past the last row
+            x = w
+            y = h - size[1]/2
 
         redraw()
 
     elif e.key == 'left':
-        w = img.size[0]
-        h = img.size[1]
-
         x -= size[0]
         if x < 0:
-            x = w
+            x = w - size[0]/2
             y -= size[1]
 
         if y < 0:
-            x += 0
-            y += 0
-            return
+            x = 0
+            y = 0
 
         redraw()
 
-    elif e.key == 'q':
+    elif e.key == 'up':
+        y -= size[1]
+        if y < 0:
+            y = h - size[1]/2
+            x += size[0]
+
+        if x > w:
+            x = w - size[0]/2
+            y = 0
+
+        redraw()
+
+    elif e.key == 'down':
+        y += size[1]
+        if y > h:
+            y = size[1]/2
+            x -= size[0]
+
+        if x < 0:
+            x = 0
+            y = h - size[1]/2
+
+        redraw()
+
+    elif e.key == 'q': # quit
         global quit
         quit = True
         pl.close()
 
+"""
+Draw the image with the bounding box.
+"""
 def redraw():
     global points
     
@@ -172,11 +225,13 @@ def redraw():
     h = img.size[1]
 
     if x >= 0 and y >= 0 and x <= w and y <= h:
+        # x,y point is the center of the rectangle; find boundary
         left = x - size[0]/2.0
         right = x + size[0]/2.0
         top = y - size[1]/2.0
         bottom = y + size[1]/2.0
 
+        # make sure it doesn't go outside the frame by shifting the box if necessary
         if right > w:
             diff = right-w
             right -= diff
@@ -204,6 +259,7 @@ def redraw():
     pl.xlim([-space,w+space])
     pl.ylim([h+space,-space])
 
+    # if you click outside of the image, top will be -1 and no bounding box will be drawn
     if top >= 0:
         pl.plot([left, right], [top, top], 'r', ms=10)
         pl.plot([left, right], [bottom, bottom], 'r', ms=10)
@@ -214,35 +270,37 @@ def redraw():
 
 def main():
     import re
-    import sys
+    import argparse
 
-    # if 4 args passed, last one is print_after
-    if len(sys.argv) == 5:
-        global print_after
-        print_after = sys.argv[-1]
-    elif len(sys.argv) != 4:
-        print 'USAGE: python crop_images.py pathOfImages pathOfCroppedImages cropSize {printAfter}'
-        print 'Ex: python crop_images.py D:\\sourceDirectory D:\\resultDirectory 300,300'
-        return
+    parser = argparse.ArgumentParser()
+    parser.add_argument('files', nargs=2, help='input and output directories')
+    parser.add_argument('size', help='new size')
+    parser.add_argument('-status', type=int, dest='print_after', default=0, help='displays how many images are left to process after every ith image')
+    args = parser.parse_args()
 
+    # source and destination
+    img_path = os.path.normpath(args.files[0])
     global save_target
-    img_path = os.path.normpath(sys.argv[1])
-    save_target = sys.argv[2]
+    save_target = args.files[1]
 
+    # get the images
     global files
     for entry in os.listdir(img_path):
         files.append(os.path.join(img_path, entry))
 
-    # add slash at end
-    #if save_target[-1] != '/': save_target = save_target + '/'
-
+    # get size
     global size
-    s = sys.argv[3].split(',')
-    s = [re.findall('\d+', p) for p in s]
+    s = args.size.split(',')
+    s = [re.findall('\d+', p) for p in s] # extract the numbers with regex
     size = (int(s[0][0]), int(s[1][0]))
-    if (not s[0][0] or not s[1][0]):
+    if size[0] < 1 or size[1] < 1:
         print 'Size is invalid: ' + size
-        print 'Size should be 2 numbers separated by a comma (no space): (300,300) or 300,300'
+        print 'Size should be 2 positive integers separated by a comma: (300,300); 300,300; ...'
+        return
+
+    # optional print_after
+    global print_after
+    print_after = args.print_after
 
     start()
 
