@@ -18,8 +18,6 @@ $ python resize_images.py images_dir output_dir 800,600 {-status 5}
 from PIL import Image
 import pylab as pl
 import os
-import numpy as np
-import cv2 as cv
 
 files = [] # list of images
 save_target = '' # where to save resized images to
