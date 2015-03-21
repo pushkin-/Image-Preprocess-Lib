@@ -15,7 +15,6 @@ Usage:
 $ python resize_images.py images_dir output_dir 800,600 {-status 5}
 """
 
-import sys
 from PIL import Image
 import pylab as pl
 import os
@@ -24,7 +23,7 @@ import cv2 as cv
 
 files = [] # list of images
 save_target = '' # where to save resized images to
-size = (-1, -1) # desired size
+size = (0, 0) # desired size
 print_after = 0 # status; if print_after = i, prints # of remaining images every ith image
 
 img = 0
@@ -131,7 +130,7 @@ def reset():
     done = False
 
 """
-Trigger to break out of loop and save the image (if all N points are valid)
+Trigger to break out of loop and save the image (if all N points are valid).
 """
 def save():
     global points
@@ -146,7 +145,7 @@ def save():
     done = True
  
 """
-Onclick, get point and redraw
+Get point and redraw.
 """
 def onclick(e):
     global x
@@ -160,7 +159,7 @@ def onclick(e):
         redraw()
 
 """
-Listen for enter (next image) and 'q' (quit)
+Listen for enter (next image) and 'q' (quit).
 """
 def onkey(e):
     global quit
@@ -174,7 +173,7 @@ def onkey(e):
         pl.close()
 
 """
-Draw the image with the bounding box
+Draw the image with the bounding box.
 """
 def redraw():
     global img
