@@ -41,7 +41,7 @@ quit = False
 idx = 0 # becomes the prefix of the output file (e.g. 0_test.jpg, 1_test.jpg, etc.)
 
 """
-Start the resizing operation.
+Start the cropping operation.
 """
 def start():
     global files
