@@ -9,8 +9,7 @@ A couple scripts I wrote a while back to help with some Machine Learning-related
 Much better descriptions available in the scripts.
 
 ### Dependencies
-Pillow
-
-pylab
-
-argparse
+* [Pillow](https://pillow.readthedocs.org/installation.html#simple-installation)
+* [numpy](http://www.scipy.org/scipylib/download.html)
+* [matplotlib](http://matplotlib.org/users/installing.html)
+* [argparse](https://pypi.python.org/pypi/argparse)
