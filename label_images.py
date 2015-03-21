@@ -194,7 +194,6 @@ def main():
     parser.add_argument('-s', type=int, dest='ms', default=3, const=3, choices=range(1,11), nargs='?', help='specifies size of point (1-10)')
     parser.add_argument('-o', type=int, dest='overwrite', default=0, const=0, choices=[0,1], nargs='?', help='overwrite the file or append to it') # overwrite
     parser.add_argument('-f', type=int, dest='id_is_filename', default=0, const=0, choices=[0,1], nargs='?', help='if 0, will use integer ids for each row; if 1, will use the filename as the id')
-    # what about indir and outdir
     args = parser.parse_args()
     required_params = args.files
 
@@ -223,6 +222,8 @@ def main():
         overwrite = 'w+'
 
     # set x and y points
+    global xL
+    global yL
     xL = [-1]*N
     yL = [-1]*N
 
