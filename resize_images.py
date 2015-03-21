@@ -145,9 +145,9 @@ def save():
 
     done = True
  
- """
+"""
 Onclick, get point and redraw
- """
+"""
 def onclick(e):
     global x
     global y
