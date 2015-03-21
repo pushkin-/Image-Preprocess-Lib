@@ -1,3 +1,20 @@
+"""
+Give it a directory with images, a directory to put the resized images in, and a size.
+If the image already fits the aspect ratio, it will automatically resize it and move on.
+Otherwise, you draw (by clicking) a bounding box around the part you want to keep (for the sake of preventing distortion).
+
+You can click outside of the image (in the white space) to remove the box. When you press the enter key to go on to the next image, if no bounding box is detected,
+the image will be skipped. Otherwise it will save the image.
+
+Press 'q' to close out of the application.
+
+Optionally, you can tell it to print how many images are left after every 'i'th image. Keeps you posted and maintains your sanity.
+Have fun.
+
+Usage:
+$ python resize_images.py images_dir output_dir 800,600 {-status 5}
+"""
+
 import sys
 from PIL import Image
 import pylab as pl
@@ -5,10 +22,10 @@ import os
 import numpy as np
 import cv2 as cv
 
-files = []
-save_target = ''
-size = (-1, -1)
-print_after = 0
+files = [] # list of images
+save_target = '' # where to save resized images to
+size = (-1, -1) # desired size
+print_after = 0 # status; if print_after = i, prints # of remaining images every ith image
 
 img = 0
 x = -1
@@ -18,6 +35,9 @@ points = 0
 done = False
 quit = False
 
+"""
+Start the resizing operation.
+"""
 def start():
     global files
     global size
@@ -25,35 +45,36 @@ def start():
     global img
     global img_name
 
-    complete = 0
-    viewed = 0
+    complete = 0 # images resized
+    viewed = 0 # images viewed
     total = len(files)
     w_c = size[0]
     h_c = size[1]
 
     for i in range(total):
-        f = files[i]
-
         if print_after > 0 and i % print_after == 0:
             print '%d images left' % (total-1-i)
 
         reset()
 
+        # get the image and size
+        f = files[i]
         img = Image.open(f)
+        img_name = os.path.basename(f)
+
         w = float(img.size[0])
         h = float(img.size[1])
 
-        img_name = os.path.basename(f)
         tol = 1e-3
         ratio_c = w_c/h_c
         ratio = float(w)/h
-        if ratio_c-tol <= ratio <= ratio_c+tol: # correct ratio already
+        if ratio_c-tol <= ratio <= ratio_c+tol: # already correct aspect ratio
             # resize and save
             img = img.resize(size, Image.ANTIALIAS)
             img.save(os.path.normpath(save_target + '/' + img_name))
             continue
 
-        img.thumbnail((size[0]*2, size[1]*2), Image.ANTIALIAS)
+        img.thumbnail((size[0]*2, size[1]*2), Image.ANTIALIAS) # resize, keeping aspect ratio
         w = img.size[0]
         h = img.size[1]
 
@@ -65,22 +86,21 @@ def start():
             w = int(h_c*w/h)
             h = int(h_c)
 
-        img = img.resize((w, h), Image.ANTIALIAS)
+        img = img.resize((w, h), Image.ANTIALIAS) # one of the dimensions will match up perfectly - either w == size[0] or h == size[1]
 
         fig = pl.figure()
         redraw()
 
+        # bind listeners
         fig.canvas.mpl_connect('button_press_event', onclick)
         fig.canvas.mpl_connect('key_press_event', onkey)
 
         pl.show()
 
         flag = True
-        while flag:
-            if done:
-                flag = False
-            if quit:
-                return
+        while flag: # ughh, I don't like this loop
+            if done: flag = False
+            if quit: return
 
         if isinstance(points, list):
             if len(points) > 0:
@@ -88,6 +108,7 @@ def start():
                 if img.size[0] != w_c or img.size[1] != h_c: # just in case
                     img = img.resize(size, Image.ANTIALIAS)
 
+                # save resized image
                 img.save(os.path.normpath(save_target + '/' + img_name))
                 complete += 1
 
@@ -95,6 +116,9 @@ def start():
 
     print 'cropped %d%% of images' % (complete*100./total)
 
+"""
+Reset the parameters.
+"""
 def reset():
     global x
     global y
@@ -106,6 +130,9 @@ def reset():
     points = 0
     done = False
 
+"""
+Trigger to break out of loop and save the image (if all N points are valid)
+"""
 def save():
     global points
     global done
@@ -118,6 +145,9 @@ def save():
 
     done = True
  
+ """
+Onclick, get point and redraw
+ """
 def onclick(e):
     global x
     global y
@@ -129,6 +159,9 @@ def onclick(e):
         y = int(y)
         redraw()
 
+"""
+Listen for enter (next image) and 'q' (quit)
+"""
 def onkey(e):
     global quit
 
@@ -140,6 +173,9 @@ def onkey(e):
         quit = True
         pl.close()
 
+"""
+Draw the image with the bounding box
+"""
 def redraw():
     global img
     global x
@@ -155,11 +191,13 @@ def redraw():
     h = img.size[1]
 
     if x >= 0 and y >= 0 and x <= w and y <= h:
+        # x,y point is the center of the rectangle; find boundary
         left = x - size[0]/2.0
         right = x + size[0]/2.0
         top = y - size[1]/2.0
         bottom = y + size[1]/2.0
 
+        # make sure it doesn't go outside the frame by shifting the box if necessary
         if right > w:
             diff = right-w
             right -= diff
@@ -187,6 +225,7 @@ def redraw():
     pl.xlim([-space,w+space])
     pl.ylim([h+space,-space])
 
+    # if you click outside of the image, top will be -1 and no bounding box will be drawn
     if top >= 0:
         pl.plot([left, right], [top, top], 'r')
         pl.plot([left, right], [bottom, bottom], 'r')
@@ -197,34 +236,37 @@ def redraw():
 
 def main():
     import re
+    import argparse
 
-    # if 4 args passed, last one is print_after
-    if len(sys.argv) == 5:
-        global print_after
-        print_after = sys.argv[-1]
-    elif len(sys.argv) != 4:
-        print 'USAGE: python crop_images.py pathOfImages pathOfCroppedImages cropSize {printAfter}'
-        print 'Ex: python crop_images.py D:\\sourceDirectory D:\\resultDirectory 300,300'
-        return
+    parser = argparse.ArgumentParser()
+    parser.add_argument('files', nargs=2, help='input and output directories')
+    parser.add_argument('size', help='new size')
+    parser.add_argument('-status', type=int, dest='print_after', default=0, help='displays how many images are left to process after every ith image')
+    args = parser.parse_args()
 
-    img_path = os.path.normpath(sys.argv[1])
+    # source and destination
+    img_path = os.path.normpath(args.files[0])
     global save_target
-    save_target = sys.argv[2]
+    save_target = args.files[1]
 
+    # get the images
     global files
     for entry in os.listdir(img_path):
         files.append(os.path.join(img_path, entry))
 
-    # add slash at end
-    #if save_target[-1] != '/': save_target = save_target + '/'
-
+    # get size
     global size
-    s = sys.argv[3].split(',')
-    s = [re.findall('\d+', p) for p in s]
+    s = args.size.split(',')
+    s = [re.findall('\d+', p) for p in s] # extract the numbers with regex
     size = (int(s[0][0]), int(s[1][0]))
-    if (not s[0][0] or not s[1][0]):
+    if size[0] < 1 or size[1] < 1:
         print 'Size is invalid: ' + size
-        print 'Size should be 2 numbers separated by a comma (no space): (300,300) or 300,300'
+        print 'Size should be 2 positive integers separated by a comma: (300,300); 300,300; ...'
+        return
+
+    # optional print_after
+    global print_after
+    print_after = args.print_after
 
     start()
 
